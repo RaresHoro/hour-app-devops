@@ -4,5 +4,5 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
 EXPOSE 5000
-ENV APP_VERSION=dev
+ENV APP_VERSION=main
 CMD ["python", "app.py"]
