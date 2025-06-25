@@ -13,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Login to Azure
+      - name: 🔐 Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
@@ -21,14 +21,15 @@ jobs:
       - name: Build and push image to Azure Container Registry
         run: |
           az acr build \
-            --registry youracr.azurecr.io \
-            --image ora-app:${{ github.sha }} \
+            --image hour-app:${{ github.sha }} \
+            --registry houracr.azurecr.io \
             --file Dockerfile .
 
-      - name: 🚀 Deploy to Azure Container App
+      - name: Deploy to Azure Container App
         run: |
           az containerapp update \
-            --name ora-prod \
+            --name hour-prod \
             --resource-group my-rg \
-            --image youracr.azurecr.io/ora-app:${{ github.sha }} \
-            --cpu 0.25 --memory 0.5Gi
+            --image houracr.azurecr.io/hour-app:${{ github.sha }} \
+            --cpu 0.25 \
+            --memory 0.5Gi
