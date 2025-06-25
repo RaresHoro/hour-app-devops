@@ -10,44 +10,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: 🔐 Azure Login
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          flake8 app.py || echo "Lint warnings found"
+
+      - name: Scan Python code with Bandit
+        run: |
+          pip install bandit
+          bandit -r . || echo "Bandit scan completed"
+
+      - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 🐳 Build Docker image
+      - name: Build Docker image
         run: |
           docker build -t houracr.azurecr.io/hour-app:${{ github.sha }} .
 
-      - name: 🔐 Login to ACR
+      - name: Login to ACR
         run: |
           az acr login --name houracr
 
-      - name: 🚚 Push Docker image to ACR
+      - name: Push Docker image to ACR
         run: |
           docker push houracr.azurecr.io/hour-app:${{ github.sha }}
 
-      - name: 🌍 Create Container App Environment (if needed)
+      - name: Create Container App Environment (if needed)
         run: |
           ENV_EXISTS=$(az containerapp env show --name hour-env --resource-group my-rg --query name -o tsv || echo "")
           if [ -z "$ENV_EXISTS" ]; then
-            echo "Creating Container App environment..."
             az containerapp env create \
               --name hour-env \
               --resource-group my-rg \
               --location westeurope
-          else
-            echo "Environment already exists: $ENV_EXISTS"
           fi
 
-      - name: 🚀 Create or Update Container App
+      - name: Create or Update Container App
         run: |
           APP_EXISTS=$(az containerapp show --name hour-app --resource-group my-rg --query name -o tsv || echo "")
           if [ -z "$APP_EXISTS" ]; then
-            echo "Creating Container App..."
             az containerapp create \
               --name hour-app \
               --resource-group my-rg \
@@ -59,7 +65,6 @@ jobs:
               --cpu 0.25 \
               --memory 0.5Gi
           else
-            echo "Updating existing Container App..."
             az containerapp update \
               --name hour-app \
               --resource-group my-rg \
@@ -68,4 +73,16 @@ jobs:
               --memory 0.5Gi
           fi
 
-      
+      - name: Validate deployment is running
+        run: |
+          URL=$(az containerapp show \
+            --name hour-app \
+            --resource-group my-rg \
+            --query properties.configuration.ingress.fqdn \
+            -o tsv)
+          curl -f https://$URL || exit 1
+
+      - name: Vulnerability scan of image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: houracr.azurecr.io/hour-app:${{ github.sha }}
