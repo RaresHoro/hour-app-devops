@@ -7,7 +7,7 @@ on:
     paths:
       - 'app.py'
       - 'Dockerfile'
-      - '.github/workflows/deploy-test.yml'
+      - '.github/workflows/test.yml'
 
 jobs:
   build-and-deploy:
