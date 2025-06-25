@@ -1,4 +1,4 @@
-name: Deploy to Container App (main)
+name: Deploy to Azure Container App (main)
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v3
 
       - name: 🔐 Login to Azure
@@ -18,18 +18,25 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build and push image to Azure Container Registry
+      - name: 🔐 Login to Azure Container Registry (ACR)
         run: |
-          az acr build \
-            --image hour-app:${{ github.sha }} \
-            --registry houracr.azurecr.io \
-            --file Dockerfile .
+          az acr login --name houracr
 
-      - name: Deploy to Azure Container App
+      - name: 🛠️ Build Docker image locally
+        run: |
+          docker build -t houracr.azurecr.io/hour-app:${{ github.sha }} .
+
+      - name: 🚚 Push Docker image to ACR
+        run: |
+          docker push houracr.azurecr.io/hour-app:${{ github.sha }}
+
+      - name: 🚀 Deploy to Azure Container App
         run: |
           az containerapp update \
-            --name hour-prod \
+            --name hour-app \
             --resource-group my-rg \
             --image houracr.azurecr.io/hour-app:${{ github.sha }} \
             --cpu 0.25 \
             --memory 0.5Gi
+
+      
