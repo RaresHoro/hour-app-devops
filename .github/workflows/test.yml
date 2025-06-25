@@ -40,7 +40,7 @@ jobs:
 
       - name: Run unit/integration tests
         run: |
-          pytest tests
+          PYTHONPATH=. pytest tests
           
       - name: Build Docker image
         run: |
