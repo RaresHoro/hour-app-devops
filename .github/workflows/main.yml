@@ -13,30 +13,32 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v3
 
-      - name: 🔐 Login to Azure
+      - name: 🔐 Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 🔐 Login to Azure Container Registry (ACR)
-        run: |
-          az acr login --name houracr
-
-      - name: 🛠️ Build Docker image locally
+      - name: 🐳 Build Docker image
         run: |
           docker build -t houracr.azurecr.io/hour-app:${{ github.sha }} .
+
+      - name: 🔐 Login to ACR
+        run: |
+          az acr login --name houracr
 
       - name: 🚚 Push Docker image to ACR
         run: |
           docker push houracr.azurecr.io/hour-app:${{ github.sha }}
 
-      - name: 🚀 Deploy to Azure Container App
+      - name: 🌍 Create Container App Environment (if needed)
         run: |
-          az containerapp update \
-            --name hour-app \
-            --resource-group my-rg \
-            --image houracr.azurecr.io/hour-app:${{ github.sha }} \
-            --cpu 0.25 \
-            --memory 0.5Gi
-
-      
+          ENV_EXISTS=$(az containerapp env show --name hour-env --resource-group my-rg --query name -o tsv || echo "")
+          if [ -z "$ENV_EXISTS" ]; then
+            echo "Creating Container App environment..."
+            az containerapp env create \
+              --name hour-env \
+              --resource-group my-rg \
+              --location westeurope
+          else
+            echo "Environment already exists: $ENV_EXISTS"
+          fi
