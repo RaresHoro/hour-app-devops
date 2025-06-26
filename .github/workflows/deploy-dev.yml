@@ -94,18 +94,21 @@ jobs:
         with:
           image-ref: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
 
-      - name: Run OWASP ZAP in Docker
+      - name: Run OWASP ZAP via Docker
         run: |
           mkdir zap-results
           docker run --rm -v ${{ github.workspace }}/zap-results:/zap/wrk \
-            owasp/zap2docker-stable zap-baseline.py \
+            ghcr.io/zaproxy/zaproxy:latest \
+            zap-baseline.py \
             -t https://${{ env.APP_URL }} \
             -r zap-report.html \
             -d -T 60 || true
+
 
 
       - name: Upload ZAP HTML report
         uses: actions/upload-artifact@v4
         with:
           name: zap-scan-report
-          path: zap-report.html
+          path: zap-results/zap-report.html
+
