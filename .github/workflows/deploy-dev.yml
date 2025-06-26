@@ -79,15 +79,33 @@ jobs:
           fi
 
       - name: Validate deployment is running
+        id: get-url
         run: |
           URL=$(az containerapp show \
             --name hour-app-dev \
             --resource-group my-rg \
             --query properties.configuration.ingress.fqdn \
             -o tsv)
+          echo "APP_URL=https://$URL" >> $GITHUB_ENV
           curl -f https://$URL || exit 1
 
       - name: Vulnerability scan of image (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
+
+      - name: Run OWASP ZAP Scan
+        uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: ${{ env.APP_URL }}
+          cmd_options: '-t 60'
+          format: html
+          output_path: zap-report.html
+          allow_issue_warnings: true
+          fail_action: false
+
+      - name: Upload ZAP HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-report
+          path: zap-report.html
