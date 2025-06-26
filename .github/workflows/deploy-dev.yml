@@ -94,13 +94,18 @@ jobs:
         with:
           image-ref: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
 
+      - name: Create zap-results directory
+        run: |
+          mkdir -p zap-results
+          chmod -R 777 zap-results
+      
       - name: Run OWASP ZAP via Docker
         run: |
-          mkdir zap-results
           docker run --rm -v ${{ github.workspace }}/zap-results:/zap/wrk \
-            ghcr.io/zaproxy/zaproxy:latest \
+            -w /zap/wrk \
+            ghcr.io/zaproxy/zaproxy \
             zap-baseline.py \
-            -t ${{ env.APP_URL }} \
+            -t https://${{ env.APP_URL }} \
             -r zap-report.html \
             -d -T 60 || true
 
