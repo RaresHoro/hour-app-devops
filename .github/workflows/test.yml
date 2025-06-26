@@ -2,16 +2,20 @@ name: Deploy to Azure Container App (test)
 
 on:
   push:
-    branches:
-      - test
+    branches: [ test ]
     paths:
       - 'app.py'
       - 'Dockerfile'
-      - '.github/workflows/test.yml'
+      - '.github/workflows/deploy-test.yml'
+
+  pull_request:
+    branches: [ test ]
+
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
-    if: github.ref == 'refs/heads/test'
+    if: github.ref == 'refs/heads/test' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
@@ -32,7 +36,7 @@ jobs:
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      
+
       - name: Install dependencies for tests
         run: |
           pip install -r requirements.txt
@@ -41,18 +45,16 @@ jobs:
       - name: Run unit/integration tests
         run: |
           PYTHONPATH=. pytest tests
-          
+
       - name: Build Docker image
         run: |
           docker build -t houracr.azurecr.io/hour-app-tst:${{ github.sha }} .
 
       - name: Login to ACR
-        run: |
-          az acr login --name houracr
+        run: az acr login --name houracr
 
       - name: Push Docker image to ACR
-        run: |
-          docker push houracr.azurecr.io/hour-app-tst:${{ github.sha }}
+        run: docker push houracr.azurecr.io/hour-app-tst:${{ github.sha }}
 
       - name: Create Container App Environment (if needed)
         run: |
@@ -87,14 +89,35 @@ jobs:
               --memory 0.5Gi
           fi
 
-      - name: Validate deployment is running
+      - name: Get app URL
+        id: get-url
         run: |
-          URL=$(az containerapp show \
+          FQDN=$(az containerapp show \
             --name hour-app-tst \
             --resource-group my-rg \
             --query properties.configuration.ingress.fqdn \
             -o tsv)
-          curl -f https://$URL || exit 1
+          echo "APP_URL=https://${FQDN}" >> $GITHUB_ENV
+          curl -f https://${FQDN}
+
+      - name: Run OWASP ZAP baseline scan
+        run: |
+          if [ -z "${{ env.APP_URL }}" ]; then echo "APP_URL not found, skipping ZAP"; exit 0; fi
+          mkdir -p zap-results && chmod -R 777 zap-results
+          docker run --rm \
+            -v ${{ github.workspace }}/zap-results:/zap/wrk \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t ${{ env.APP_URL }} \
+            -r zap-report.html \
+            -w zap-report.md \
+            -T 60 || true
+
+      - name: Upload ZAP HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-report
+          path: zap-results/zap-report.html
 
       - name: Vulnerability scan of image (Trivy)
         uses: aquasecurity/trivy-action@master
