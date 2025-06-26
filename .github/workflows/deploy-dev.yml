@@ -100,7 +100,7 @@ jobs:
           docker run --rm -v ${{ github.workspace }}/zap-results:/zap/wrk \
             ghcr.io/zaproxy/zaproxy:latest \
             zap-baseline.py \
-            -t https://${{ env.APP_URL }} \
+            -t ${{ env.APP_URL }} \
             -r zap-report.html \
             -d -T 60 || true
 
