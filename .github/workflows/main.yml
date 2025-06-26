@@ -33,54 +33,48 @@ jobs:
           docker build -t houracr.azurecr.io/hour-app:${{ github.sha }} .
 
       - name: Login to ACR
-        run: |
-          az acr login --name houracr
+        run: az acr login --name houracr
 
       - name: Push Docker image to ACR
-        run: |
-          docker push houracr.azurecr.io/hour-app:${{ github.sha }}
+        run: docker push houracr.azurecr.io/hour-app:${{ github.sha }}
 
-      - name: Create Container App Environment (if needed)
+      - name: Create Container App Environment
         run: |
           ENV_EXISTS=$(az containerapp env show --name hour-env --resource-group my-rg --query name -o tsv || echo "")
           if [ -z "$ENV_EXISTS" ]; then
-            az containerapp env create \
-              --name hour-env \
-              --resource-group my-rg \
-              --location westeurope
+            az containerapp env create --name hour-env --resource-group my-rg --location westeurope
           fi
 
       - name: Create or Update Container App
         run: |
           APP_EXISTS=$(az containerapp show --name hour-app --resource-group my-rg --query name -o tsv || echo "")
           if [ -z "$APP_EXISTS" ]; then
-            az containerapp create \
-              --name hour-app \
-              --resource-group my-rg \
-              --environment hour-env \
-              --image houracr.azurecr.io/hour-app:${{ github.sha }} \
-              --target-port 5000 \
-              --ingress external \
-              --registry-server houracr.azurecr.io \
-              --cpu 0.25 \
-              --memory 0.5Gi
+            az containerapp create --name hour-app --resource-group my-rg --environment hour-env --image houracr.azurecr.io/hour-app:${{ github.sha }} --target-port 5000 --ingress external --registry-server houracr.azurecr.io --cpu 0.25 --memory 0.5Gi
           else
-            az containerapp update \
-              --name hour-app \
-              --resource-group my-rg \
-              --image houracr.azurecr.io/hour-app:${{ github.sha }} \
-              --cpu 0.25 \
-              --memory 0.5Gi
+            az containerapp update --name hour-app --resource-group my-rg --image houracr.azurecr.io/hour-app:${{ github.sha }} --cpu 0.25 --memory 0.5Gi
           fi
 
-      - name: Validate deployment is running
+      - name: Get app URL
+        id: get-url
         run: |
-          URL=$(az containerapp show \
-            --name hour-app \
-            --resource-group my-rg \
-            --query properties.configuration.ingress.fqdn \
-            -o tsv)
-          curl -f https://$URL || exit 1
+          FQDN=$(az containerapp show --name hour-app --resource-group my-rg --query properties.configuration.ingress.fqdn -o tsv)
+          echo "APP_URL=https://${FQDN}" >> $GITHUB_ENV
+          curl -f https://${FQDN}
+
+      - name: Create zap-results directory
+        run: |
+          mkdir -p zap-results
+          chmod -R 777 zap-results
+
+      - name: Run OWASP ZAP baseline scan
+        run: |
+          docker run --rm -v ${{ github.workspace }}/zap-results:/zap/wrk ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t ${{ env.APP_URL }} -r zap-report.html -w zap-report.md -T 60 --exitcode 1
+
+      - name: Upload ZAP HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-report
+          path: zap-results/zap-report.html
 
       - name: Vulnerability scan of image (Trivy)
         uses: aquasecurity/trivy-action@master
