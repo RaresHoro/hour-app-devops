@@ -1,4 +1,4 @@
-name: Deploy to Azure Container App (dev) 
+name: Deploy to Azure Container App (dev)
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 
 permissions:
   contents: read
-  pages: write
+  security-events: write
 
 jobs:
   deploy-and-scan:
@@ -86,9 +86,14 @@ jobs:
         with:
           image-ref: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
 
-      - name: Run OWASP ZAP
+     
+      - name: Create zap-results directory
         run: |
           mkdir -p zap-results
+          chmod -R 777 zap-results
+
+      - name: Run OWASP ZAP
+        run: |
           docker run --rm -v ${{ github.workspace }}/zap-results:/zap/wrk \
             -w /zap/wrk \
             ghcr.io/zaproxy/zaproxy \
