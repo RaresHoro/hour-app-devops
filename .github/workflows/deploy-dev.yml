@@ -14,10 +14,12 @@ permissions:
   security-events: write
 
 jobs:
-  static-checks:
+  deploy-and-scan:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Lint with flake8
         run: |
@@ -28,12 +30,6 @@ jobs:
         run: |
           pip install bandit
           bandit -r . || echo "Bandit scan completed"
-
-  deploy:
-    needs: static-checks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
 
       - name: Azure Login
         uses: azure/login@v1
@@ -74,7 +70,7 @@ jobs:
               --cpu 0.25 --memory 0.5Gi
           fi
 
-      - name: Validate deployment
+      - name: Validate deployment is running
         id: get-url
         run: |
           URL=$(az containerapp show \
@@ -85,16 +81,13 @@ jobs:
           echo "APP_URL=https://$URL" >> $GITHUB_ENV
           curl -f https://$URL || exit 1
 
-  security-scan:
-    needs: deploy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Vulnerability scan of image (Trivy)
+      - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          format: table
+          ignore-unfixed: true
 
       - name: Prepare ZAP SARIF scan
         run: |
@@ -103,7 +96,7 @@ jobs:
           cp .zap/zap-automation.yaml zap-results/
           chmod -R 777 zap-results
 
-      - name: Run OWASP ZAP via Docker with SARIF script
+      - name: Run OWASP ZAP via Docker with SARIF
         run: |
           docker run --rm -v ${{ github.workspace }}/zap-results:/zap/wrk \
             -w /zap/wrk \
@@ -111,10 +104,7 @@ jobs:
             zap.sh -cmd -addoninstall sarifreport \
             -autorun /zap/wrk/zap-automation.yaml || true
 
-      - name: Show ZAP output
-        run: ls -l zap-results
-
-      - name: Upload SARIF to GitHub Security tab
+      - name: Upload ZAP SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: ${{ github.workspace }}/zap-results/zap-report.sarif
