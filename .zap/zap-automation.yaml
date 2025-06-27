@@ -1,0 +1,26 @@
+parameters:
+  failOnError: false
+  failOnWarning: false
+  progressToStdout: true
+
+jobs:
+  - type: passiveScan-config
+    parameters:
+      scanOnlyInScope: false
+  - type: spider
+    parameters:
+      contextName: Default Context
+      url: ${{ env.APP_URL }}
+      maxDuration: 1
+  - type: script
+    parameters:
+      action: run
+      type: stand-alone
+      engine: Oracle Nashorn
+      name: generate-sarif.js
+      file: /zap/wrk/.zap/generate-sarif.js
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: /zap/wrk/zap-results
+      reportFile: zap-report.html
