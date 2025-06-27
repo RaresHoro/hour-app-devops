@@ -11,7 +11,7 @@ jobs:
     parameters:
       contextName: Default Context
       url: ${{ env.APP_URL }}
-      maxDuration: 1
+      maxDuration: 5
   - type: script
     parameters:
       action: run
