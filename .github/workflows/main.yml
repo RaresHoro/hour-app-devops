@@ -31,8 +31,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Build Docker image
-        run: |
-          docker build -t houracr.azurecr.io/hour-app:${{ github.sha }} .
+        run: docker build -t houracr.azurecr.io/hour-app:${{ github.sha }} .
 
       - name: Login to ACR
         run: az acr login --name houracr
@@ -51,9 +50,21 @@ jobs:
         run: |
           APP_EXISTS=$(az containerapp show --name hour-app --resource-group my-rg --query name -o tsv || echo "")
           if [ -z "$APP_EXISTS" ]; then
-            az containerapp create --name hour-app --resource-group my-rg --environment hour-env --image houracr.azurecr.io/hour-app:${{ github.sha }} --target-port 5000 --ingress external --registry-server houracr.azurecr.io --cpu 0.25 --memory 0.5Gi
+            az containerapp create \
+              --name hour-app \
+              --resource-group my-rg \
+              --environment hour-env \
+              --image houracr.azurecr.io/hour-app:${{ github.sha }} \
+              --target-port 5000 \
+              --ingress external \
+              --registry-server houracr.azurecr.io \
+              --cpu 0.25 --memory 0.5Gi
           else
-            az containerapp update --name hour-app --resource-group my-rg --image houracr.azurecr.io/hour-app:${{ github.sha }} --cpu 0.25 --memory 0.5Gi
+            az containerapp update \
+              --name hour-app \
+              --resource-group my-rg \
+              --image houracr.azurecr.io/hour-app:${{ github.sha }} \
+              --cpu 0.25 --memory 0.5Gi
           fi
 
       - name: Get app URL
@@ -63,18 +74,23 @@ jobs:
           echo "APP_URL=https://${FQDN}" >> $GITHUB_ENV
           curl -f https://${FQDN}
 
+      - name: Vulnerability scan of image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: houracr.azurecr.io/hour-app:${{ github.sha }}
+
       - name: Run OWASP ZAP baseline scan
         run: |
-          if [ -z "${{ env.APP_URL }}" ]; then echo "APP_URL not found, skipping ZAP"; exit 0; fi
           mkdir -p zap-results && chmod -R 777 zap-results
           docker run --rm \
-            -v ${{ github.workspace }}/zap-results:/zap/wrk \
+            -v ${{ github.workspace }}:/zap/wrk \
+            -w /zap/wrk \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
             -t ${{ env.APP_URL }} \
-            -r zap-report.html \
-            -w zap-report.md \
-            -T 60 || true
+            -c .zap/zap-automation.yaml \
+            -r zap-results/zap-report.html \
+            -d -T 60 || true   # nu oprește pipeline-ul la erori
 
       - name: Upload ZAP HTML report
         uses: actions/upload-artifact@v4
@@ -82,7 +98,17 @@ jobs:
           name: zap-scan-report
           path: zap-results/zap-report.html
 
-      - name: Vulnerability scan of image (Trivy)
-        uses: aquasecurity/trivy-action@master
+      - name: Publish ZAP reports to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          image-ref: houracr.azurecr.io/hour-app:${{ github.sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: zap-results
+          destination_dir: zap-main-report
+          keep_files: true
+
+      - name: Announce ZAP reports
+        run: |
+          echo "::notice ::[View HTML Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/zap-main-report/zap-report.html)"
+          echo "::notice ::[Download SARIF Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/zap-main-report/zap-report.sarif)"
