@@ -9,6 +9,11 @@ on:
       - 'Dockerfile'
       - '.github/workflows/deploy-dev.yml'
 
+permissions:
+  contents: read
+  security-events: write
+
+  
 jobs:
   build-and-deploy:
     if: github.ref == 'refs/heads/dev'
@@ -109,6 +114,7 @@ jobs:
             -r zap-report.html \
             -x zap-report.sarif \
             -d -T 60 || true
+            --debug
 
       - name: Upload ZAP HTML report
         uses: actions/upload-artifact@v4
@@ -117,6 +123,6 @@ jobs:
           path: zap-results/zap-report.html
 
       - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: zap-results/zap-report.sarif
