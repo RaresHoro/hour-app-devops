@@ -13,7 +13,6 @@ permissions:
   contents: read
   security-events: write
 
-  
 jobs:
   build-and-deploy:
     if: github.ref == 'refs/heads/dev'
@@ -102,17 +101,17 @@ jobs:
       - name: Create zap-results directory
         run: |
           mkdir -p zap-results
+          cp .zap/generate-sarif.js zap-results/
           chmod -R 777 zap-results
 
-      - name: Run OWASP ZAP via Docker (HTML + SARIF)
+      - name: Run OWASP ZAP via Docker with SARIF script
         run: |
           docker run --rm -v ${{ github.workspace }}/zap-results:/zap/wrk \
             -w /zap/wrk \
             ghcr.io/zaproxy/zaproxy \
-            zap-baseline.py \
-            -t ${{ env.APP_URL }} \
-            -x zap-report.sarif \
-            -d -T 60 || true
+            zap.sh -cmd -quickurl ${{ env.APP_URL }} \
+            -addoninstall sarifreport \
+            -autorun /zap/wrk/generate-sarif.js || true
 
       - name: Show contents of zap-results
         run: ls -l zap-results
@@ -120,4 +119,4 @@ jobs:
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: ${{ github.workspace }}/zap-results/zap-report.sarif.xml
+          sarif_file: ${{ github.workspace }}/zap-results/zap-report.sarif
