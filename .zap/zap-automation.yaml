@@ -15,7 +15,7 @@ jobs:
     parameters:
       action: run
       type: stand-alone
-      engine: ECMAScript : Oracle Nashorn
+      engine: Oracle Nashorn
       name: generate-sarif.js
       file: /zap/wrk/generate-sarif.js
   - type: report
