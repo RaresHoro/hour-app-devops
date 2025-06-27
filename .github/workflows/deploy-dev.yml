@@ -11,7 +11,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write
+  pages: write
 
 jobs:
   deploy-and-scan:
@@ -85,26 +85,24 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
-          severity: CRITICAL,HIGH
-          format: table
-          ignore-unfixed: true
 
-      - name: Prepare ZAP SARIF scan
+      - name: Run OWASP ZAP
         run: |
           mkdir -p zap-results
-          cp .zap/generate-sarif.js zap-results/
-          cp .zap/zap-automation.yaml zap-results/
-          chmod -R 777 zap-results
-
-      - name: Run OWASP ZAP via Docker with SARIF
-        run: |
           docker run --rm -v ${{ github.workspace }}/zap-results:/zap/wrk \
             -w /zap/wrk \
             ghcr.io/zaproxy/zaproxy \
-            zap.sh -cmd -addoninstall sarifreport \
-            -autorun /zap/wrk/zap-automation.yaml || true
+            zap-baseline.py \
+            -t ${{ env.APP_URL }} \
+            -r zap-report.html \
+            -d -T 60 || true
 
-      - name: Upload ZAP SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Publish ZAP report to GitHub Pages
+        if: github.ref == 'refs/heads/dev'
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          sarif_file: ${{ github.workspace }}/zap-results/zap-report.sarif 
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: zap-results
+          destination_dir: zap-dev-report
+          keep_files: true
