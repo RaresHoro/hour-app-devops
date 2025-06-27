@@ -113,7 +113,10 @@ jobs:
             -t ${{ env.APP_URL }} \
             -r zap-report.html \
             -x zap-report.sarif \
-            -d -T 60 || true
+            -d -T 60
+
+      - name: Show contents of zap-results
+        run: ls -l zap-results
 
       - name: Upload ZAP HTML report
         uses: actions/upload-artifact@v4
