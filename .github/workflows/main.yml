@@ -2,87 +2,119 @@ name: Deploy to Azure Container App (main)
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  security-events: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Lint with flake8
+      - name: Lint
         run: |
           pip install flake8
-          flake8 app.py || echo "Lint warnings found"
+          flake8 app.py || true
 
-      - name: Scan Python code with Bandit
+      - name: Bandit
         run: |
           pip install bandit
-          bandit -r . || echo "Bandit scan completed"
+          bandit -r . || true
 
-      - name: Azure Login
+      - name: Azure login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build Docker image
+      - name: Build image
+        run: docker build -t houracr.azurecr.io/hour-app:${{ github.sha }} .
+
+      - name: Push to ACR
         run: |
-          docker build -t houracr.azurecr.io/hour-app:${{ github.sha }} .
+          az acr login --name houracr
+          docker push houracr.azurecr.io/hour-app:${{ github.sha }}
 
-      - name: Login to ACR
-        run: az acr login --name houracr
-
-      - name: Push Docker image to ACR
-        run: docker push houracr.azurecr.io/hour-app:${{ github.sha }}
-
-      - name: Create Container App Environment
+      - name: Ensure container-app env
         run: |
-          ENV_EXISTS=$(az containerapp env show --name hour-env --resource-group my-rg --query name -o tsv || echo "")
-          if [ -z "$ENV_EXISTS" ]; then
-            az containerapp env create --name hour-env --resource-group my-rg --location westeurope
-          fi
+          az containerapp env show --name hour-env --resource-group my-rg --query name -o tsv \
+          || az containerapp env create --name hour-env --resource-group my-rg --location westeurope
 
-      - name: Create or Update Container App
+      - name: Create/Update app
         run: |
-          APP_EXISTS=$(az containerapp show --name hour-app --resource-group my-rg --query name -o tsv || echo "")
-          if [ -z "$APP_EXISTS" ]; then
-            az containerapp create --name hour-app --resource-group my-rg --environment hour-env --image houracr.azurecr.io/hour-app:${{ github.sha }} --target-port 5000 --ingress external --registry-server houracr.azurecr.io --cpu 0.25 --memory 0.5Gi
-          else
-            az containerapp update --name hour-app --resource-group my-rg --image houracr.azurecr.io/hour-app:${{ github.sha }} --cpu 0.25 --memory 0.5Gi
-          fi
+          az containerapp show --name hour-app --resource-group my-rg --query name -o tsv \
+          || az containerapp create --name hour-app --resource-group my-rg \
+               --environment hour-env --image houracr.azurecr.io/hour-app:${{ github.sha }} \
+               --target-port 5000 --ingress external --registry-server houracr.azurecr.io \
+               --cpu 0.25 --memory 0.5Gi
+          az containerapp update --name hour-app --resource-group my-rg \
+               --image houracr.azurecr.io/hour-app:${{ github.sha }} --cpu 0.25 --memory 0.5Gi
 
-      - name: Get app URL
+      - name: Get app URL (non-blocking)
         id: get-url
         run: |
-          FQDN=$(az containerapp show --name hour-app --resource-group my-rg --query properties.configuration.ingress.fqdn -o tsv)
-          echo "APP_URL=https://${FQDN}" >> $GITHUB_ENV
-          curl -f https://${FQDN}
+          URL=$(az containerapp show --name hour-app --resource-group my-rg \
+            --query properties.configuration.ingress.fqdn -o tsv || echo "")
+          if [ -z "$URL" ]; then
+            echo "⚠️ APP_URL not found. Skipping scan steps."
+            echo "APP_URL=" >> $GITHUB_ENV
+            exit 0
+          fi
+          echo "APP_URL=https://$URL" >> $GITHUB_ENV
+          curl -f https://$URL || true
 
-      - name: Run OWASP ZAP baseline scan
+      - name: ZAP baseline (HTML+SARIF)
         run: |
-          if [ -z "${{ env.APP_URL }}" ]; then echo "APP_URL not found, skipping ZAP"; exit 0; fi
-          mkdir -p zap-results && chmod -R 777 zap-results
-          docker run --rm \
-            -v ${{ github.workspace }}/zap-results:/zap/wrk \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py \
-            -t ${{ env.APP_URL }} \
-            -r zap-report.html \
-            -w zap-report.md \
-            -T 60 || true
+          mkdir -p zap-results
+          docker run --rm -v ${{ github.workspace }}/zap-results:/zap/wrk ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t ${{ env.APP_URL }} -r zap-report.html -x zap-report.sarif -T 60 || true
 
-      - name: Upload ZAP HTML report
+      - name: Upload HTML artefact
         uses: actions/upload-artifact@v4
         with:
-          name: zap-scan-report
+          name: zap-html-report
           path: zap-results/zap-report.html
 
-      - name: Vulnerability scan of image (Trivy)
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: zap-results/zap-report.sarif
+
+      - name: Trivy image scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: houracr.azurecr.io/hour-app:${{ github.sha }}
+
+  publish-zap-pages:
+    needs: build-and-deploy
+    if: needs.build-and-deploy.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: zap-html-report
+          path: zap-report
+
+      - uses: actions/configure-pages@v3
+
+      - run: |
+          mkdir -p public/zap/main
+          cp zap-report/zap-report.html public/zap/main/index.html
+
+      - uses: actions/upload-pages-artifact@v2
+        with:
+          path: public
+
+      - uses: actions/deploy-pages@v2
+
+      - run: |
+          echo "::notice title=ZAP Report::[View ZAP Report](https://${{ github.repository_owner }}.github.io/$(echo ${{ github.repository }} | cut -d'/' -f2)/zap/main/)"
