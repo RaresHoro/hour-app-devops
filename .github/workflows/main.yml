@@ -90,7 +90,12 @@ jobs:
             -t ${{ env.APP_URL }} \
             -c .zap/zap-automation.yaml \
             -r zap-results/zap-report.html \
-            -d -T 120 || true   # nu oprește pipeline-ul la erori
+            -d -T 120 || true
+
+      - name: Check zap-results content
+        run: |
+          echo "Listing contents of zap-results/"
+          ls -la zap-results
 
       - name: Upload ZAP HTML report
         uses: actions/upload-artifact@v4
