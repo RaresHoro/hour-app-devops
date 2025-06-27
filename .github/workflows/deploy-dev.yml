@@ -113,7 +113,7 @@ jobs:
             -t ${{ env.APP_URL }} \
             -r zap-report.html \
             -x zap-report.sarif \
-            -d -T 60 --debug || true
+            -d -T 60 || true
 
       - name: Upload ZAP HTML report
         uses: actions/upload-artifact@v4
@@ -124,4 +124,4 @@ jobs:
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: zap-results/zap-report.sarif
+          sarif_file: ${{ github.workspace }}/zap-results/zap-report.sarif
