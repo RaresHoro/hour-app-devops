@@ -113,8 +113,7 @@ jobs:
             -t ${{ env.APP_URL }} \
             -r zap-report.html \
             -x zap-report.sarif \
-            -d -T 60 || true
-            --debug
+            -d -T 60 --debug || true
 
       - name: Upload ZAP HTML report
         uses: actions/upload-artifact@v4
