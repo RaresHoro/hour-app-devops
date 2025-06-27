@@ -11,7 +11,7 @@ jobs:
   - type: spider
     parameters:
       contextName: Default Context
-      url: ${{ env.APP_URL }}
+      url: ${env.APP_URL}
       maxDuration: 5
 
   - type: script
