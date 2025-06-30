@@ -51,14 +51,18 @@ jobs:
           tags: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
 
       - name: Install latest Trivy
+        shell: bash
         run: |
+          set -e
+          # Get the URL of the latest Linux .deb asset
           TRIVY_URL=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest \
-                      | grep browser_download_url \
-                      | grep Linux-64bit.deb \
-                      | cut -d '"' -f 4)
+                       | grep browser_download_url \
+                       | grep 'Linux-64bit.deb' \
+                       | cut -d '"' -f 4)
           echo "Downloading $TRIVY_URL"
           wget "$TRIVY_URL" -O trivy.deb
           sudo dpkg -i trivy.deb
+
 
 
 
