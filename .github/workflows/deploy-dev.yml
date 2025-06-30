@@ -9,6 +9,10 @@ on:
       - 'Dockerfile'
       - '.github/workflows/deploy-dev.yml'
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   static-checks:
     runs-on: ubuntu-latest
@@ -29,6 +33,8 @@ jobs:
   build-and-push:
     needs: static-checks
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.set-tag.outputs.image_tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -48,10 +54,25 @@ jobs:
           push: true
           tags: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
 
-      - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@master
+      - name: Generate Trivy HTML report
+        run: |
+          mkdir -p trivy-pages
+          trivy image \
+            --format template \
+            --template "@contrib/html.tpl" \
+            --output trivy-pages/index.html \
+            --severity HIGH,CRITICAL \
+            houracr.azurecr.io/hour-app-dev:${{ github.sha }}
+
+      - name: Publish Trivy report to GitHub Pages
+        if: github.ref == 'refs/heads/dev'
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          image-ref: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: trivy-pages
+          destination_dir: trivy-dev-report
+          keep_files: true
 
   deploy:
     needs: build-and-push
