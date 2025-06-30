@@ -73,11 +73,12 @@ jobs:
         run: |
           mkdir -p trivy-pages
           trivy image \
-            --format template \
-            --template "@contrib/html.tpl" \
-            --output trivy-pages/index.html \
-            --severity HIGH,CRITICAL \
-            houracr.azurecr.io/hour-app-dev:${{ github.sha }}
+          --format template \
+          --template "/usr/local/share/trivy/templates/html.tpl" \
+          --output trivy-pages/index.html \
+          --severity HIGH,CRITICAL \
+          houracr.azurecr.io/hour-app-dev:${{ github.sha }}
+
 
       - name: Publish Trivy report to GitHub Pages
         if: github.ref == 'refs/heads/dev'
