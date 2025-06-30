@@ -50,20 +50,23 @@ jobs:
           push: true
           tags: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
 
-      - name: Install latest Trivy
-        shell: bash
+      - name: Install Trivy (APT repo)
         run: |
-          set -e
-          # Get the URL of the latest Linux .deb asset
-          TRIVY_URL=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest \
-                       | grep browser_download_url \
-                       | grep 'Linux-64bit.deb' \
-                       | cut -d '"' -f 4)
-          echo "Downloading $TRIVY_URL"
-          wget "$TRIVY_URL" -O trivy.deb
-          sudo dpkg -i trivy.deb
-
-
+          # Add Aqua Security’s signing key
+          sudo apt-get update -y
+          sudo apt-get install -y gnupg lsb-release wget
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+      
+          # Add the Trivy repository for your Ubuntu release
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb \
+            $(lsb_release -cs) main" | \
+            sudo tee /etc/apt/sources.list.d/trivy.list
+      
+          # Install Trivy
+          sudo apt-get update -y
+          sudo apt-get install -y trivy
+  
+  
 
 
       - name: Generate Trivy HTML report
