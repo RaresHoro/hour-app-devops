@@ -9,10 +9,6 @@ on:
       - 'Dockerfile'
       - '.github/workflows/deploy-dev.yml'
 
-permissions:
-  contents: read
-  security-events: write
-
 jobs:
   static-checks:
     runs-on: ubuntu-latest
