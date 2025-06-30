@@ -54,8 +54,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install wget -y
-          wget -qO- https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.1_Linux-64bit.deb > trivy.deb
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.1_Linux-64bit.deb -O trivy.deb
           sudo dpkg -i trivy.deb
+
 
       - name: Generate Trivy HTML report
         run: |
