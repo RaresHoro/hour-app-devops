@@ -3,7 +3,7 @@ env:
   - excludePaths: []
     name: baseline
     urls:
-    - https://hour-app-dev.wittypond-8701d159.westeurope.azurecontainerapps.io
+    - https://hour-app-dev.livelypebble-e06b63f0.westeurope.azurecontainerapps.io
   parameters:
     failOnError: true
     progressToStdout: true
@@ -14,7 +14,7 @@ jobs:
   type: passiveScan-config
 - parameters:
     maxDuration: 1
-    url: https://hour-app-dev.wittypond-8701d159.westeurope.azurecontainerapps.io
+    url: https://hour-app-dev.livelypebble-e06b63f0.westeurope.azurecontainerapps.io
   type: spider
 - parameters:
     maxDuration: 60
