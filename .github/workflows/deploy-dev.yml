@@ -33,11 +33,17 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build and Push Docker image
-        run: |
-          docker build -t houracr.azurecr.io/hour-app-dev:${{ github.sha }} .
-          az acr login --name houracr
-          docker push houracr.azurecr.io/hour-app-dev:${{ github.sha }}
+      - name: Build and push using Docker Action
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
 
       - name: Create Container App Environment (if needed)
         run: |
@@ -78,10 +84,7 @@ jobs:
           echo "APP_URL=https://$URL" >> $GITHUB_ENV
           curl -f https://$URL || exit 1
 
-      - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
+      
 
      
       - name: Create zap-results directory
