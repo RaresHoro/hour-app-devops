@@ -9,11 +9,13 @@ on:
       - 'Dockerfile'
       - '.github/workflows/deploy-dev.yml'
 
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
-  deploy-and-scan:
+  static-checks:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -27,6 +29,13 @@ jobs:
         run: |
           pip install bandit
           bandit -r . || echo "Bandit scan completed"
+
+  build-and-push:
+    needs: static-checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Azure Login
         uses: azure/login@v1
@@ -47,6 +56,17 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: houracr.azurecr.io/hour-app-dev:${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    outputs:
+      app_url: ${{ steps.get-url.outputs.app_url }}
+    steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Create Container App Environment (if needed)
         run: |
@@ -84,12 +104,16 @@ jobs:
             --resource-group my-rg \
             --query properties.configuration.ingress.fqdn \
             -o tsv)
-          echo "APP_URL=https://$URL" >> $GITHUB_ENV
+          echo "app_url=$URL" >> $GITHUB_OUTPUT
           curl -f https://$URL || exit 1
 
-      
+  scan-zap:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-     
       - name: Create zap-results directory
         run: |
           mkdir -p zap-results
@@ -101,12 +125,11 @@ jobs:
             -w /zap/wrk \
             ghcr.io/zaproxy/zaproxy \
             zap-baseline.py \
-            -t ${{ env.APP_URL }} \
+            -t https://${{ needs.deploy.outputs.app_url }} \
             -r zap-report.html \
             -d -T 60 || true
 
       - name: Publish ZAP report to GitHub Pages
-        if: github.ref == 'refs/heads/dev'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
