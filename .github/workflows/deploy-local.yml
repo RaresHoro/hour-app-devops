@@ -7,9 +7,9 @@ on:
 
 jobs:
   test-runner:
-    runs-on:
-      - self-hosted
-      - laptop-horo
+    runs-on: self-hosted
+
+      
 
     steps:
       - name: Print runner info
