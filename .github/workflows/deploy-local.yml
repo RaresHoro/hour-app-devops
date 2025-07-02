@@ -1,14 +1,6 @@
 name: Deploy to local Minikube
 
-on:
-  push:
-    branches:
-      - dev
-    paths:
-      - '**.py'
-      - '.github/workflows/deploy-local.yml'
-      - k8s/**
-
+on: 
   workflow_dispatch: 
 
 jobs:
