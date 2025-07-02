@@ -13,8 +13,8 @@ on:
 
 jobs:
   deploy:
-    if: ${{ github.event.inputs.target == github.event.inputs.target }}
-    runs-on: [self-hosted, ${{ github.event.inputs.target }}]
+    if: ${{ github.event.inputs.target == 'alexandru' }}
+    runs-on: [self-hosted, alexandru]
 
     steps:
       - uses: actions/checkout@v4
@@ -36,4 +36,3 @@ jobs:
         run: |
           NODE_PORT=$(kubectl get svc hour-app -o jsonpath='{.spec.ports[0].nodePort}')
           echo "🌐 Access app at: http://127.0.0.1:$NODE_PORT"
-
