@@ -1,19 +1,21 @@
 name: Deploy to local Minikube
 
 on:
+  push:
+    branches:
+      - dev
+    paths:
+      - '**.py'
+      - '.github/workflows/deploy-local.yml'
+      - k8s/**
+
   workflow_dispatch:
-    inputs:
-      trigger_reason:
-        description: "Why are you running this workflow?"
-        required: true
-        default: "initial test"
-        type: string
 
 jobs:
   build-and-deploy:
     runs-on:
       - self-hosted
-      - laptop-horo    # Your laptop's runner label
+      - laptop-horo
 
     steps:
       - name: Checkout code
