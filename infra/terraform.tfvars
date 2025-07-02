@@ -1,7 +1,0 @@
-resource_group_name = "my-rg"
-location            = "northeurope"
-environment_name    = "hour-env"
-container_app_name  = "hour-app-dev"
-acr_login_server    = "houracr.azurecr.io"
-acr_name = "houracr"
-container_image= "houracr.azurecr.io/hour-app-dev:terraform"
