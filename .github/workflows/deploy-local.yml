@@ -1,7 +1,10 @@
 name: Deploy to local Minikube
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - dev
+  
 
 jobs:
   build-and-deploy:
