@@ -1,4 +1,4 @@
-name: Deploy to Azure Container App (main)
+name: Deploy to Rancher Desktop
 
 on:
   push:
