@@ -1,38 +1,18 @@
-name: Deploy to local Minikube
+name: Test Self-Hosted Runner
 
-on: 
-  workflow_dispatch: 
+on:
+  push:
+    branches:
+      - dev  # or whichever branch you're pushing to
 
 jobs:
-  build-and-deploy:
+  test-runner:
     runs-on:
       - self-hosted
       - laptop-horo
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Point Docker CLI to Minikube
+      - name: Print runner info
         run: |
-          eval $(minikube docker-env)
-          docker info | grep "Operating System"
-
-      - name: Build Docker image inside Minikube's Docker
-        run: |
-          IMAGE=hour-app:${{ github.sha }}
-          docker build -t $IMAGE .
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-
-      - name: Deploy to Kubernetes using manifest
-        run: |
-          sed "s|__IMAGE__|${IMAGE}|g" k8s/app.yaml | kubectl apply -f -
-
-      - name: Verify rollout
-        run: |
-          kubectl rollout status deployment/hour-app --timeout=60s
-          kubectl get svc hour-app -o wide
-
-      - name: Show local app URL
-        run: |
-          minikube service hour-app --url
+          echo "✅ This is running on a self-hosted runner!"
+          echo "Hostname: $(hostname)"
