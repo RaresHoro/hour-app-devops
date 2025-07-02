@@ -1,38 +1,19 @@
 name: Deploy to local Minikube
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on:
       - self-hosted
-      - laptop-horo    # Your laptop's runner label
+      - laptop-horo
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Point Docker CLI to Minikube
+      - name: Test if runner works
         run: |
-          eval $(minikube docker-env)
-          docker info | grep "Operating System"
-
-      - name: Build Docker image inside Minikube's Docker
-        run: |
-          IMAGE=hour-app:${{ github.sha }}
-          docker build -t $IMAGE .
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-
-      - name: Deploy to Kubernetes using manifest
-        run: |
-          sed "s|__IMAGE__|${IMAGE}|g" k8s/app.yaml | kubectl apply -f -
-
-      - name: Verify rollout
-        run: |
-          kubectl rollout status deployment/hour-app --timeout=60s
-          kubectl get svc hour-app -o wide
-
-      - name: Show local app URL
-        run: |
-          minikube service hour-app --url
+          echo "✅ Running on laptop-horo"
+          hostname
