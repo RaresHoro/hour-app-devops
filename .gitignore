@@ -92,3 +92,6 @@ override.tf.json
 
 # Logs
 *.log
+
+# Prevent big local archives (like downloaded runners)
+*.tar.gz
