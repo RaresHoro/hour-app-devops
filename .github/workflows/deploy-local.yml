@@ -1,33 +1,38 @@
-name: Test Self-Hosted Runner
+name: Deploy to local Minikube
 
 on:
-  push:
-    branches:
-      - dev 
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
-    runs-on: 
-    - self-hosted
-    - laptop-horo
-    - minikube
+    runs-on:
+      - self-hosted
+      - laptop-horo
+      - minikube
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Point Docker CLI to Minikube
-        run: |
-          eval $(minikube docker-env)
-          docker info
-
-      - name: Build Docker image inside Minikube Docker
+      - name: Build and load Docker image into Minikube
         run: |
           IMAGE=hour-app:${{ github.sha }}
           docker build -t $IMAGE .
+          minikube image load $IMAGE
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
       - name: Deploy to Kubernetes using manifest
         run: |
           sed "s|__IMAGE__|${IMAGE}|g" k8s/app.yaml | kubectl apply -f -
 
+      - name: Wait for rollout to complete
+        run: |
+          kubectl rollout status deployment/hour-app --timeout=60s
+          kubectl get pods -o wide
+
+      - name: Print service info and access URL
+        run: |
+          NODE_PORT=$(kubectl get svc hour-app -o jsonpath='{.spec.ports[0].nodePort}')
+          MINIKUBE_IP=$(minikube ip)
+          echo "📦 Service: hour-app"
+          echo "🌐 URL: http://$MINIKUBE_IP:$NODE_PORT"
