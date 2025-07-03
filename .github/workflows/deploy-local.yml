@@ -10,8 +10,8 @@ jobs:
   build-and-deploy:
     runs-on:
       - self-hosted
-      - laptop-horo
-      - minikube
+      - alexandru
+      
 
     steps:
       - name: Checkout code
