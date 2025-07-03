@@ -9,7 +9,7 @@ jobs:
   build-and-deploy:
     runs-on:
       - self-hosted
-      - alexandru
+      - laptop-horo
 
     steps:
       - name: Checkout code
