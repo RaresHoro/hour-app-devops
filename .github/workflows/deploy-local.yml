@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Runner label (self-hosted)'
+        description: 'Alege runner-ul self-hosted pe care să ruleze jobul'
         required: true
         default: 'alexandru'
         type: choice
@@ -14,26 +14,33 @@ on:
 
 jobs:
   deploy:
-    if: ${{ contains(fromJson("[\"alexandru\", \"laptop-horo\"]"), github.event.inputs.target) }}
-    runs-on: [self-hosted, ${{ github.event.inputs.target }}]
+    # rulează doar dacă inputul e unul dintre label-urile permise
+    if: >-
+      ${{ contains(fromJson("[\"alexandru\", \"laptop-horo\"]"),
+                   github.event.inputs.target) }}
+
+    # dinamic: ["self-hosted", "alexandru"]   SAU   ["self-hosted", "laptop-horo"]
+    runs-on: >-
+      ${{ format('["self-hosted", "{0}"]', github.event.inputs.target) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Build Docker image local
         run: |
           IMAGE=hour-app:${{ github.sha }}
-          docker build -t $IMAGE .
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          docker build -t "$IMAGE" .
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
-      - name: Deploy to Kubernetes (Rancher or Minikube)
+      - name: Deploy la Kubernetes local
         run: |
           sed "s|__IMAGE__|${IMAGE}|g" k8s/app.yaml | kubectl apply -f -
 
-      - name: Wait rollout
+      - name: Așteaptă rollout
         run: kubectl rollout status deployment/hour-app --timeout=90s
 
-      - name: Show local access URL
+      - name: Afișează URL-ul local
         run: |
           NODE_PORT=$(kubectl get svc hour-app -o jsonpath='{.spec.ports[0].nodePort}')
-          echo "🌐 Access app at: http://127.0.0.1:$NODE_PORT"
+          echo "🌐 Accesează aplicația la: http://127.0.0.1:${NODE_PORT}"
