@@ -17,8 +17,7 @@ jobs:
   deploy:
     # GitHub așteaptă o LISTĂ YAML; o poți scrie pe 2 linii:
     runs-on:
-      - self-hosted
-      - ${{ github.event.inputs.target }}   # => alexandru SAU laptop-horo
+      - laptop-horo
 
     steps:
       - uses: actions/checkout@v4
