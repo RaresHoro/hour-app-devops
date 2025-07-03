@@ -14,8 +14,8 @@ on:
 
 jobs:
   deploy:
-    if: ${{ github.event.inputs.target == 'alexandru' || github.event.inputs.target == 'laptop-horo' }}
-    runs-on: [self-hosted, alexandru, laptop-horo]
+    if: ${{ contains(fromJson('["alexandru","laptop-horo"]'), github.event.inputs.target) }}
+    runs-on: [self-hosted, ${{ github.event.inputs.target }}]
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +26,7 @@ jobs:
           docker build -t $IMAGE .
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Deploy to Rancher Desktop (Kubernetes)
+      - name: Deploy to Kubernetes (Rancher or Minikube)
         run: |
           sed "s|__IMAGE__|${IMAGE}|g" k8s/app.yaml | kubectl apply -f -
 
