@@ -14,7 +14,7 @@ on:
 
 jobs:
   deploy:
-    if: ${{ github.event.inputs.target == 'alexandru' }}
+    if: ${{ github.event.inputs.target == 'alexandru' || github.event.inputs.target == 'laptop-horo' }}
     runs-on: [self-hosted, alexandru, laptop-horo]
 
     steps:
