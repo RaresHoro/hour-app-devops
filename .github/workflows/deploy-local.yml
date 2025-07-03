@@ -1,28 +1,32 @@
-name: Deploy to local Minikube
+name: Deploy to Kubernetes
 
 on:
   push:
     branches:
       - dev
-  
 
 jobs:
   build-and-deploy:
     runs-on:
       - self-hosted
-      - alexandru
-      
+      - laptop-horo
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build and load Docker image into Minikube
+      - name: Build Docker image
         run: |
           IMAGE=hour-app:${{ github.sha }}
           docker build -t $IMAGE .
-          minikube image load $IMAGE
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Push image to local registry (if needed)
+        run: |
+          # Only needed if your cluster pulls from a registry like Docker Hub or ACR
+          # docker tag $IMAGE your-registry/hour-app:${{ github.sha }}
+          # docker push your-registry/hour-app:${{ github.sha }}
+          echo "Assuming image is available to Kubernetes"
 
       - name: Deploy to Kubernetes using manifest
         run: |
@@ -33,9 +37,6 @@ jobs:
           kubectl rollout status deployment/hour-app --timeout=60s
           kubectl get pods -o wide
 
-      - name: Print service info and access URL
+      - name: Print service info
         run: |
-          NODE_PORT=$(kubectl get svc hour-app -o jsonpath='{.spec.ports[0].nodePort}')
-          MINIKUBE_IP=$(minikube ip)
-          echo "📦 Service: hour-app"
-          echo "🌐 URL: http://$MINIKUBE_IP:$NODE_PORT"
+          kubectl get svc hour-app -o wide
