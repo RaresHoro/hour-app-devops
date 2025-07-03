@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: hour-app
-          image: "__IMAGE__"
+          image: hour-app:dev  
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
