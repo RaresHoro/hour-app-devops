@@ -1,4 +1,4 @@
-name: Deploy to local Kubernetes (Rancher Desktop)
+name: Deploy to local Kubernetes (Rancher Desktop) 
 
 on:
   push:
