@@ -3,7 +3,7 @@ name: Deploy to local Kubernetes (Rancher Desktop)
 on:
   push:
     branches:
-      - dev
+      - dev 
 
 jobs:
   build-and-deploy:
