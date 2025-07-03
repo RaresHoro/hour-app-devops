@@ -1,39 +1,35 @@
+# .github/workflows/deploy-local.yml
 name: Deploy to Rancher Desktop
 
 on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Alege runner-ul self-hosted pe care să ruleze jobul'
+        description: "Alege runner-ul self-hosted"
         required: true
-        default: 'alexandru'
+        default: alexandru
         type: choice
         options:
           - alexandru
-          - laptop-horo
+          - laptop-horo          # (labelul colegului)
 
 jobs:
   deploy:
-    # rulează doar dacă inputul e unul dintre label-urile permise
-    if: >-
-      ${{ contains(fromJson("[\"alexandru\", \"laptop-horo\"]"),
-                   github.event.inputs.target) }}
-
-    # dinamic: ["self-hosted", "alexandru"]   SAU   ["self-hosted", "laptop-horo"]
-    runs-on: >-
-      ${{ format('["self-hosted", "{0}"]', github.event.inputs.target) }}
+    # GitHub așteaptă o LISTĂ YAML; o poți scrie pe 2 linii:
+    runs-on:
+      - self-hosted
+      - ${{ github.event.inputs.target }}   # => alexandru SAU laptop-horo
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Build Docker image local
         run: |
           IMAGE=hour-app:${{ github.sha }}
           docker build -t "$IMAGE" .
-          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Deploy la Kubernetes local
+      - name: Deploy în Kubernetes local
         run: |
           sed "s|__IMAGE__|${IMAGE}|g" k8s/app.yaml | kubectl apply -f -
 
@@ -43,4 +39,4 @@ jobs:
       - name: Afișează URL-ul local
         run: |
           NODE_PORT=$(kubectl get svc hour-app -o jsonpath='{.spec.ports[0].nodePort}')
-          echo "🌐 Accesează aplicația la: http://127.0.0.1:${NODE_PORT}"
+          echo "🌐 Deschide în browser: http://127.0.0.1:${NODE_PORT}"
