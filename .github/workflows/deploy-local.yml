@@ -10,11 +10,12 @@ on:
         type: choice
         options:
           - alexandru
+          - laptop-horo
 
 jobs:
   deploy:
     if: ${{ github.event.inputs.target == 'alexandru' }}
-    runs-on: [self-hosted, alexandru]
+    runs-on: [self-hosted, alexandru, laptop-horo]
 
     steps:
       - uses: actions/checkout@v4
