@@ -14,7 +14,7 @@ on:
 
 jobs:
   deploy:
-    if: ${{ contains(fromJson('["alexandru","laptop-horo"]'), github.event.inputs.target) }}
+    if: ${{ contains(fromJson("[\"alexandru\", \"laptop-horo\"]"), github.event.inputs.target) }}
     runs-on: [self-hosted, ${{ github.event.inputs.target }}]
 
     steps:
