@@ -15,23 +15,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build Docker image
+      - name: Build Docker image for Rancher
         run: |
-          IMAGE=hour-app:${{ github.sha }}
+          IMAGE=hour-app:dev
           docker build -t $IMAGE .
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Deploy to Kubernetes using manifest
+      - name: Deploy to Kubernetes
         run: |
-          sed "s|__IMAGE__|${IMAGE}|g" k8s/app.yaml | kubectl apply -f -
+          sed "s|hour-app:dev|${IMAGE}|g" k8s/app.yaml | kubectl apply -f -
 
-      - name: Wait for rollout to complete
+      - name: Wait for rollout
         run: |
           kubectl rollout status deployment/hour-app --timeout=60s
           kubectl get pods -o wide
 
-      - name: Print service info and access URL
+      - name: Print access info
         run: |
           NODE_PORT=$(kubectl get svc hour-app -o jsonpath='{.spec.ports[0].nodePort}')
-          echo "📦 Service: hour-app"
-          echo "🌐 URL: http://localhost:$NODE_PORT"
+          echo "🌐 Access: http://localhost:$NODE_PORT"
