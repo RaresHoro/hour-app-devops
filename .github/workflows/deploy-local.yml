@@ -1,9 +1,9 @@
-name: Deploy to local Kubernetes (Rancher Desktop) 
+name: Deploy to local Kubernetes (Rancher Desktop)
 
 on:
   push:
     branches:
-      - dev 
+      - dev
 
 jobs:
   build-and-deploy:
@@ -22,8 +22,10 @@ jobs:
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
       - name: Deploy to Kubernetes
+        env:
+          IMAGE: ${{ env.IMAGE }}
         run: |
-          sed "s|hour-app:dev|${IMAGE}|g" k8s/app.yaml | kubectl apply -f -
+          sed "s|hour-app:dev|$IMAGE|g" k8s/app.yaml | kubectl apply -f -
 
       - name: Wait for rollout
         run: |
