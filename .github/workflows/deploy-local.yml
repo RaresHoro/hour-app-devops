@@ -1,15 +1,15 @@
-name: Deploy to Kubernetes
+name: Deploy to local Kubernetes (Rancher Desktop)
 
 on:
   push:
     branches:
-      - dev 
+      - dev
 
 jobs:
   build-and-deploy:
     runs-on:
       - self-hosted
-      - laptop-horo
+      - alexandru
 
     steps:
       - name: Checkout code
@@ -21,13 +21,6 @@ jobs:
           docker build -t $IMAGE .
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Push image to local registry (if needed)
-        run: |
-          # Only needed if your cluster pulls from a registry like Docker Hub or ACR
-          # docker tag $IMAGE your-registry/hour-app:${{ github.sha }}
-          # docker push your-registry/hour-app:${{ github.sha }}
-          echo "Assuming image is available to Kubernetes"
-
       - name: Deploy to Kubernetes using manifest
         run: |
           sed "s|__IMAGE__|${IMAGE}|g" k8s/app.yaml | kubectl apply -f -
@@ -37,6 +30,8 @@ jobs:
           kubectl rollout status deployment/hour-app --timeout=60s
           kubectl get pods -o wide
 
-      - name: Print service info
+      - name: Print service info and access URL
         run: |
-          kubectl get svc hour-app -o wide
+          NODE_PORT=$(kubectl get svc hour-app -o jsonpath='{.spec.ports[0].nodePort}')
+          echo "📦 Service: hour-app"
+          echo "🌐 URL: http://localhost:$NODE_PORT"
